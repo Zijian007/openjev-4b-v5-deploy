@@ -18,6 +18,14 @@ PYTHON = ROOT / ".venv/bin/python"
 HOST = "127.0.0.1"
 BIND_HOST = "0.0.0.0"
 PORT = 31000
+ENV_FILE = ROOT / "service.env"
+if ENV_FILE.is_file():
+    for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            k, v = line.split("=", 1)
+            os.environ.setdefault(k.strip(), v.strip())
+
 STOP_TIMEOUT = float(os.environ.get("OPENJEV_STOP_TIMEOUT", "10"))
 START_TIMEOUT = float(os.environ.get("OPENJEV_START_TIMEOUT", "180"))
 
@@ -29,7 +37,7 @@ def pid():
         if (proc / "stat").read_text().split(")", 1)[1].split()[0] == "Z":
             return None
         cmd = (proc / "cmdline").read_bytes()
-        if (proc / "cwd").resolve() == ROOT and b"uvicorn" in cmd and b"server:app" in cmd:
+        if (proc / "cwd").resolve() == ROOT and b"uvicorn" in cmd and (b"server:app" in cmd or b"openjev.server:app" in cmd):
             return value
     except (FileNotFoundError, ValueError, PermissionError, ProcessLookupError):
         pass
@@ -76,9 +84,12 @@ def start():
         if s.connect_ex((HOST, PORT)) == 0:
             raise SystemExit(f"Port {PORT} is already used by another service")
     env = os.environ.copy()
+    python_path = f"{ROOT / 'src'}:{ROOT / 'vendor/openjev'}"
+    if "PYTHONPATH" in env and env["PYTHONPATH"]:
+        python_path = f"{python_path}:{env['PYTHONPATH']}"
     env.update({
         "CUDA_VISIBLE_DEVICES": env.get("OPENJEV_GPU", "0"),
-        "PYTHONPATH": str(ROOT / "vendor/openjev"),
+        "PYTHONPATH": python_path,
         "HF_HOME": str(ROOT / "runtime/hf-cache"),
         "TOKENIZERS_PARALLELISM": "false",
         "OMP_NUM_THREADS": "4",
@@ -88,7 +99,7 @@ def start():
     PIDFILE.parent.mkdir(exist_ok=True)
     with LOGFILE.open("ab") as log:
         child = subprocess.Popen(
-            [str(PYTHON), "-m", "uvicorn", "server:app", "--host", BIND_HOST, "--port", str(PORT), "--workers", "1",
+            [str(PYTHON), "-m", "uvicorn", "openjev.server:app", "--host", BIND_HOST, "--port", str(PORT), "--workers", "1",
              "--timeout-graceful-shutdown", "5", "--limit-concurrency", "32", "--backlog", "64"],
             cwd=ROOT, env=env, stdin=subprocess.DEVNULL,
             stdout=log, stderr=log, start_new_session=True,
