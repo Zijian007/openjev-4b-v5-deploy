@@ -15,8 +15,7 @@ import torch
 from transformers import AutoProcessor
 from transformers.models.qwen3_5.modeling_qwen3_5 import Qwen3_5Model, Qwen3_5PreTrainedModel
 
-import openjev.project_paths  # noqa: F401
-from decisions_api import ApiError, assemble, softmax_ent
+from openjev.decisions_api import ApiError, assemble, softmax_ent
 from openjev.input_schema import MARKER
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -132,11 +131,76 @@ def load():
             "physical_gpu": os.environ.get("CUDA_VISIBLE_DEVICES"), "max_tokens": MAX_TOKENS}
 
 
+def enrich_answers(answers, plan):
+    """Enrich raw answers with human/robot-friendly interpretations while preserving contract."""
+    q_map = {q.qid: q for q in plan.questions}
+    for qid, ans in answers.items():
+        q = q_map.get(qid)
+        if not q:
+            continue
+        qtype = ans.get("type")
+        if qtype == "noul":
+            prob = float(ans.get("noul", 0.0))
+            ans["decision"] = bool(prob >= 0.5)
+            ans["label"] = "true" if ans["decision"] else "false"
+            ans["threshold"] = 0.5
+            ans["confidence"] = round(abs(prob - 0.5) * 2.0, 4)
+            ans["probabilities"] = {
+                "false": round(1.0 - prob, 4),
+                "true": prob,
+            }
+        elif qtype == "choice":
+            probs = ans.get("probabilities", {})
+            chosen = ans.get("choice", "")
+            ans["choice_text"] = q.legend.get(chosen, "")
+            ranked = sorted(
+                [
+                    {
+                        "option": k,
+                        "probability": p,
+                        "text": q.legend.get(k, ""),
+                    }
+                    for k, p in probs.items()
+                ],
+                key=lambda x: x["probability"],
+                reverse=True,
+            )
+            ans["ranked"] = ranked
+            if len(ranked) >= 2:
+                ans["margin"] = round(ranked[0]["probability"] - ranked[1]["probability"], 4)
+            else:
+                ans["margin"] = 1.0
+        elif qtype == "score":
+            score = float(ans.get("score", 0.0))
+            max_score = float(len(q.keys) - 1)
+            ans["max_score"] = max_score
+            ans["percentage"] = round((score / max_score) * 100.0, 2) if max_score > 0 else 100.0
+            nearest_idx = str(max(0, min(len(q.keys) - 1, int(round(score)))))
+            ans["nearest_level"] = q.legend.get(nearest_idx, "")
+    return answers
+
+
 def infer(shared):
     faulthandler.dump_traceback_later(60, repeat=False)
+    infer_start = time.perf_counter()
     try:
         logits = run_scores(shared.plan.pairs, shared.images, shared.order)
-        return {"model": MODEL_NAME, "answers": assemble(shared.plan, softmax_ent(logits)),
-                "probability_method": "normalized_entailment_v1"}
+        raw_answers = assemble(shared.plan, softmax_ent(logits))
+        answers = enrich_answers(raw_answers, shared.plan)
+        latency = round(time.perf_counter() - infer_start, 3)
+        meta = {
+            "gpu": torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu",
+            "physical_gpu": os.environ.get("CUDA_VISIBLE_DEVICES", "0"),
+            "worker_pid": os.getpid(),
+            "latency_seconds": latency,
+            "image_count": len(shared.images),
+            "candidate_count": len(shared.plan.pairs),
+        }
+        return {
+            "model": MODEL_NAME,
+            "answers": answers,
+            "meta": meta,
+            "probability_method": "normalized_entailment_v1",
+        }
     finally:
         faulthandler.cancel_dump_traceback_later()

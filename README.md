@@ -84,11 +84,11 @@ bash scripts/setup.sh custom --accelerate
 ### 作者 SGLang 服务：30000
 
 ```bash
-.venv-sglang/bin/python service_sglang.py start
-.venv-sglang/bin/python service_sglang.py status
-.venv-sglang/bin/python service_sglang.py stop
-.venv-sglang/bin/python service_sglang.py restart
-.venv-sglang/bin/python service_sglang.py logs
+.venv-sglang/bin/python scripts/sglang/service_sglang.py start
+.venv-sglang/bin/python scripts/sglang/service_sglang.py status
+.venv-sglang/bin/python scripts/sglang/service_sglang.py stop
+.venv-sglang/bin/python scripts/sglang/service_sglang.py restart
+.venv-sglang/bin/python scripts/sglang/service_sglang.py logs
 ```
 
 以上是独立操作命令，按需执行。两套 `start` 都会等待模型就绪才返回；首次启动 SGLang 可能需要准备计算组件。关闭 SSH 窗口后服务继续运行，**没有设置开机自动启动**。停止时会关闭本服务的计算子进程；正常退出超时后会强制结束本服务。
@@ -97,7 +97,7 @@ bash scripts/setup.sh custom --accelerate
 
 ```bash
 OPENJEV_GPU=0 .venv/bin/python service.py start
-SGLANG_GPU=1 .venv-sglang/bin/python service_sglang.py start
+SGLANG_GPU=1 .venv-sglang/bin/python scripts/sglang/service_sglang.py start
 ```
 
 SGLang 默认显存预算为整张显卡的 60%，可用 `SGLANG_MEM_FRACTION=0.60` 调整；启动等待时间默认 600 秒，可用 `SGLANG_START_TIMEOUT` 调整。变更显卡等设置后需重启相应服务。
@@ -144,19 +144,19 @@ print(response.json())
 完整的 body、三种问题、图片路径转换、共享多图与错误说明见 **[REQUEST_FORMAT.md](REQUEST_FORMAT.md)**。
 
 ```bash
-# 本机使用已安装的环境
-.venv/bin/python example_text.py
-.venv/bin/python example_image.py
-.venv/bin/python example_multi_image.py
+# 本机使用已安装的环境运行示例
+.venv/bin/python examples/example_text.py
+.venv/bin/python examples/example_image.py
+.venv/bin/python examples/example_multi_image.py
 
 # 其他机器：将 SERVER_IP 换为服务器地址
-python example_multi_image.py --host SERVER_IP --port 31000
+python examples/example_multi_image.py --host SERVER_IP --port 31000
 ```
 
 ### 30000：作者 OpenJevSGLang
 
 ```python
-from sglang_client import OpenJevSGLang
+from scripts.sglang.sglang_client import OpenJevSGLang
 
 client = OpenJevSGLang("http://127.0.0.1:30000")  # 跨机器时改成服务器 IP
 print(client.predict([
@@ -167,14 +167,14 @@ print(client.predict([
 调用代码应在仓库根目录运行，以便导入作者客户端。两图例子使用作者模板和答案规则，每个问题共同参考两张图：
 
 ```bash
-.venv-sglang/bin/python example_multi_image_sglang.py
-python example_multi_image_sglang.py --host SERVER_IP --port 30000
+.venv-sglang/bin/python examples/example_multi_image_sglang.py
+python examples/example_multi_image_sglang.py --host SERVER_IP --port 30000
 ```
 
-两份多图例子默认都使用仓库内的红、蓝纯色图，问题完全相同。可用 `--images first.jpg second.jpg` 换成**运行调用代码的电脑上的路径**，再修改 `multi_image_request.py` 中的问题和选项。上传的是图片内容，服务器不读取客户端路径。发送给 SGLang 的图片使用带格式前缀的 data URI，避免 JPG 数据被误当成文件路径。
+两份多图例子默认都使用仓库内的红、蓝纯色图，问题完全相同。可用 `--images first.jpg second.jpg` 换成**运行调用代码的电脑上的路径**。上传的是图片内容，服务器不读取客户端路径。发送给 SGLang 的图片使用带格式前缀的 data URI，避免 JPG 数据被误当成文件路径。
 
-## 检查与来源
+## 检查与运维
 
-31000 就绪后可运行 `.venv/bin/python check_service.py`，检查多图和请求格式。`check_recovery.py` 会中断并重启 31000，只在专门排查恢复问题时手动运行。安装任一环境后可运行无需模型的仓库检查，例如 `.venv/bin/python -m unittest discover -s tests`。
+31000 就绪后可运行 `.venv/bin/python scripts/check_service.py`，检查多图和请求格式。`scripts/check_recovery.py` 会中断并重启 31000，只在专门排查恢复问题时手动运行。安装任一环境后可运行无需模型的仓库检查，例如 `.venv/bin/python -m unittest discover -s tests`。
 
 模型、模板和原作者代码来源及固定版本见 [THIRD_PARTY.md](THIRD_PARTY.md)。本仓库未重新训练或更换权重，图片处理与计算优化不保证与另一套服务的每个概率完全相同。

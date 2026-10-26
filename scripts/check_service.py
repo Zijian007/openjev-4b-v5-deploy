@@ -38,7 +38,7 @@ def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=31000)
-    parser.add_argument("--out", default="verification.json")
+    parser.add_argument("--out", default="runtime/verification.json")
     args = parser.parse_args()
     url = f"http://{args.host}:{args.port}"
     endpoint = url + "/v1/systemone"

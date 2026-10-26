@@ -16,8 +16,6 @@ LOGFILE = ROOT / "logs/service.log"
 WORKER_PIDFILE = ROOT / "runtime/model-worker.pid"
 PYTHON = ROOT / ".venv/bin/python"
 HOST = "127.0.0.1"
-BIND_HOST = "0.0.0.0"
-PORT = 31000
 ENV_FILE = ROOT / "service.env"
 if ENV_FILE.is_file():
     for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
@@ -26,6 +24,8 @@ if ENV_FILE.is_file():
             k, v = line.split("=", 1)
             os.environ.setdefault(k.strip(), v.strip())
 
+PORT = int(os.environ.get("OPENJEV_PORT", "31000"))
+BIND_HOST = os.environ.get("OPENJEV_BIND_HOST", "0.0.0.0")
 STOP_TIMEOUT = float(os.environ.get("OPENJEV_STOP_TIMEOUT", "10"))
 START_TIMEOUT = float(os.environ.get("OPENJEV_START_TIMEOUT", "180"))
 

@@ -10,7 +10,7 @@ from pathlib import Path
 
 import requests
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 URL = "http://127.0.0.1:31000"
 BODY = {"state": "A man is playing a guitar.", "questions": {
     "activity": {"type": "choice", "instructions": "What is the man doing?", "criteria": {"A": "Making music", "B": "Swimming"}}}}

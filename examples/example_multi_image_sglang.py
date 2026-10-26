@@ -12,10 +12,11 @@ import requests
 
 ROOT = Path(__file__).resolve().parents[1]
 import sys
-if str(ROOT) not in sys.path:
-    sys.path.insert(0, str(ROOT))
-import project_paths  # noqa: F401
-from multi_image_request import make_body
+for p in (ROOT / "src", ROOT / "examples", ROOT / "scripts/sglang"):
+    if str(p) not in sys.path:
+        sys.path.insert(0, str(p))
+import openjev.project_paths  # noqa: F401
+from helpers import make_body
 from decisions_api import assemble, build_plan, softmax_ent
 from sglang_client import OpenJevSGLang
 

@@ -5,13 +5,15 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(ROOT))
+for p in (ROOT / "src", ROOT / "examples", ROOT / "vendor/openjev"):
+    if str(p) not in sys.path:
+        sys.path.insert(0, str(p))
 
 from PIL import Image
-from input_schema import validate_request
+from openjev.input_schema import validate_request
 from decisions_api import ApiError, assemble, softmax_ent
 from example_multi_image_sglang import make_request
-from multi_image_request import make_body
+from helpers import make_body
 
 
 class SharedImageContractTests(unittest.TestCase):

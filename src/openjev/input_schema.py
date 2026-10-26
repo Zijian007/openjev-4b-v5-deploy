@@ -8,9 +8,8 @@ from dataclasses import dataclass
 
 from PIL import Image
 
-import openjev.project_paths  # noqa: F401
-from decisions_api import HYPOTHESIS, ApiError, Plan, QPlan, _options
-from image_inputs import image_input
+from openjev.decisions_api import HYPOTHESIS, ApiError, Plan, QPlan, _options
+from openjev.image_inputs import image_input
 
 MAX_IMAGES = 4
 MAX_QUESTIONS = 64
@@ -119,7 +118,7 @@ def validate_request(body):
         start = len(pairs)
         for label, description in zip(labels, descriptions):
             pairs.append((state, HYPOTHESIS.format(instr=instruction, label=label, crit=description)))
-        legend = dict(zip(keys, descriptions)) if qtype == "score" else {}
+        legend = dict(zip(keys, descriptions))
         plans.append(QPlan(qid, qtype, keys, 1, start, legend))
 
     images = []

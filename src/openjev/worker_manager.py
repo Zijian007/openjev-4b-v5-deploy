@@ -10,8 +10,7 @@ import signal
 import time
 from pathlib import Path
 
-import openjev.project_paths  # noqa: F401
-from decisions_api import ApiError
+from openjev.decisions_api import ApiError
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKER_PID = ROOT / "runtime/model-worker.pid"
